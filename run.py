@@ -27,7 +27,7 @@ def run(algorithm, seed, weight='distance', log=1):
     print('seed', 'nodes', 'topo_num', 'edges', 'units', 'mean_demand', 'n', 'bad', 'cum_demand', 'cum_util', 'src', 'dst', 'demand', 'paths', 'path_len', 'cu_start', 'elapsed')
 
     for mean_demand_fraction in [10, 20]:
-        for nodes in range(25, 275, 25):
+        for nodes in range(25, 525, 25):
             for topo_num in range(0, 10):
                 for units in range(100, 1100, 100):
                     mean_demand = units // mean_demand_fraction
