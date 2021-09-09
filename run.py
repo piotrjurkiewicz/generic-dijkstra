@@ -57,12 +57,10 @@ def run(algorithm, seed, weight='distance', log=1):
                     cum_demand = 0
                     cum_util = 0
                     reach_1 = 0
-                    for line in open('topo_lib/%s.csv' % topo_name):
-                        try:
-                            sp_length = float(line.split(',')[-4])
-                        except Exception:
-                            continue
-                        reach_1 = max(reach_1, sp_length * 1.5)
+                    for line in open('topo_lib/%s.tex' % topo_name):
+                        if 'Max. length of disjoint shortest paths' in line:
+                            sp_length = float(line.split()[-1])
+                            reach_1 = max(reach_1, sp_length * 1.5)
                     reach_m = reach_1 / 2 ** (max_m - 1)
                     while True:
                         if demands_values:
