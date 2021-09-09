@@ -82,9 +82,9 @@ def load_csv(path):
     dfs = collections.defaultdict(list)
 
     for csv in sorted(path.glob('**/result.csv')):
-        seed = int(csv.parts[-3])
-        algorithm = csv.parts[-4]
-        runtime = csv.parts[-5]
+        seed = int(csv.parts[-2])
+        algorithm = csv.parts[-3]
+        runtime = csv.parts[-4]
         d = pd.read_csv(csv, index_col=None, header=0, sep=' ', dtype=dtype)
         assert (d['seed'] == seed).all()
         dfs[runtime, algorithm].append(d)
@@ -92,9 +92,15 @@ def load_csv(path):
 
     df = {}
     for (runtime, algorithm), dl in dfs.items():
-        df[runtime, algorithm] = pd.concat(dl)
+        d = pd.concat(dl)
         del dl[:]
-        df[runtime, algorithm].to_hdf(path / f'{runtime}_{algorithm}.hdf', key=f'{runtime}_{algorithm}', mode='w')
+        d['elapsed'] = d['elapsed'].astype(float) / 1000000000
+        d['usage'] = d['cum_util'] / (d['edges'].astype(np.uint64) * d['units'])
+        d['usage'] = d['usage'].round(2)
+        if runtime == 'python3':
+            runtime = 'cpython'
+        d.to_hdf(path / f'{runtime}_{algorithm}.hdf', key=f'{runtime}_{algorithm}', mode='w')
+        df[runtime, algorithm] = d
         print('concat', runtime, algorithm)
 
     return df
@@ -103,14 +109,8 @@ def load_data(path):
     df = {}
     for hdf in sorted(path.glob('*.hdf')):
         d = pd.read_hdf(hdf)
-        d['elapsed'] = d['elapsed'].astype(float) / 1000000000
-        d['usage'] = d['cum_util'] / (d['edges'].astype(np.uint64) * d['units'])
-        d['usage'] = d['usage'].round(2)
         runtime, algorithm = tuple(hdf.stem.split('_'))
-        if runtime == 'python3':
-            runtime = 'cpython'
         df[runtime, algorithm] = d
-
     return df
 
 def plot_hist(ss, name, relative=False):
@@ -267,9 +267,12 @@ def main():
 
     path = pathlib.Path(app_args.results_dir)
 
-    df = load_data(path)
-    print([len(d) for d in df.values()])
+    if not list(path.glob('*.hdf')):
+        df = load_csv(path)
+    else:
+        df = load_data(path)
 
+    print([len(d) for d in df.values()])
     pd.set_option('float_format', '{:.6f}'.format)
 
     for result in ['all', 'good', 'bad']:
@@ -283,8 +286,8 @@ def main():
             raise ValueError
 
         for k, v in dd.items():
-            plot_groups({k: v}, result + '/' + '_'.join(k))
-            plot_hist({k: v}, result + '/' + '_'.join(k))
+            plot_groups({k: v}, f'plots/{result}/' + '_'.join(k))
+            plot_hist({k: v}, f'plots/{result}/' + '_'.join(k))
 
         rel = {}
         for interpreter in ['cpython', 'pypy3']:
@@ -292,8 +295,8 @@ def main():
             d['elapsed'] /= dd[interpreter, 'filtered']['elapsed']
             rel[interpreter] = d
 
-        plot_groups(rel, result + '/' + f'relative_to_filtered', relative=True)
-        plot_hist(rel, result + '/' + f'relative_to_filtered', relative=True)
+        plot_groups(rel, f'plots/{result}/relative_to_filtered', relative=True)
+        plot_hist(rel, f'plots/{result}relative_to_filtered', relative=True)
 
 
 if __name__ == '__main__':
